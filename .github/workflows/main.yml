@@ -18,10 +18,10 @@ jobs:
           terraform_version: 1.7.0
 
       - name: Terraform Init
-        run: terraform init infrastructure/environments/dev
+        run: terraform -chdir=infrastructure/environments/dev init
 
       - name: Terraform Plan
-        run: terraform plan infrastructure/environments/dev
+        run: terraform -chdir=infrastructure/environments/dev plan
 
       - name: Terraform Apply
-        run: terraform apply -auto-approve infrastructure/environments/dev
+        run: terraform -chdir=infrastructure/environments/dev apply -auto-approve
