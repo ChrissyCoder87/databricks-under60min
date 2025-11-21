@@ -1,0 +1,105 @@
+name: Complete Infrastructure Deployment
+
+on:
+  push:
+    branches:
+      - main
+      - test
+      - prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      TF_CLI_ARGS_init: "-input=false"
+      TF_CLI_ARGS_apply: "-auto-approve"
+      ARM_SKIP_PROVIDER_REGISTRATION: true
+
+    steps:
+      # ------------------------------------------------------
+      # 1. Checkout Repository
+      # ------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------
+      # 2. Setup Terraform
+      # ------------------------------------------------------
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.7.5
+
+      # ------------------------------------------------------
+      # 3. Install Databricks CLI
+      # ------------------------------------------------------
+      - name: Install Databricks CLI
+        run: |
+          sudo wget https://github.com/databricks/cli/releases/download/v0.215.0/databricks_linux_amd64.zip
+          sudo unzip databricks_linux_amd64.zip -d /usr/local/bin
+          sudo chmod +x /usr/local/bin/databricks
+
+      # ------------------------------------------------------
+      # 4. Detect Environment (dev/test/prod)
+      # ------------------------------------------------------
+      - name: Detect environment
+        id: env
+        run: |
+          if [[ "${GITHUB_REF_NAME}" == "main" ]]; then
+            echo "env=dev" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" == "test" ]]; then
+            echo "env=test" >> $GITHUB_OUTPUT
+          elif [[ "${GITHUB_REF_NAME}" == "prod" ]]; then
+            echo "env=prod" >> $GITHUB_OUTPUT
+          fi
+        shell: bash
+
+      - name: Show selected environment
+        run: echo "Deploying environment: ${{ steps.env.outputs.env }}"
+
+      # ------------------------------------------------------
+      # 5. Set Terraform variables
+      # ------------------------------------------------------
+      - name: Create Terraform env vars file
+        run: |
+          echo "environment = \"${{ steps.env.outputs.env }}\"" > terraform.auto.tfvars
+
+      # ------------------------------------------------------
+      # 6. Terraform Init
+      # ------------------------------------------------------
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      # ------------------------------------------------------
+      # 7. Terraform Plan
+      # ------------------------------------------------------
+      - name: Terraform Plan
+        working-directory: infra
+        run: terraform plan
+
+      # ------------------------------------------------------
+      # 8. Terraform Apply
+      # ------------------------------------------------------
+      - name: Terraform Apply
+        working-directory: infra
+        run: terraform apply
+
+      # ------------------------------------------------------
+      # 9. Databricks Bundle Deploy
+      # ------------------------------------------------------
+      - name: Deploy Databricks Bundle
+        run: |
+          databricks bundle deploy \
+            --profile "default" \
+            --environments "${{ steps.env.outputs.env }}"
+
+      # ------------------------------------------------------
+      # 10. Summary
+      # ------------------------------------------------------
+      - name: Deployment Summary
+        run: |
+          echo "### 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "Environment: **${{ steps.env.outputs.env }}**" >> $GITHUB_STEP_SUMMARY
+          echo "Branch: **${GITHUB_REF_NAME}**" >> $GITHUB_STEP_SUMMARY
