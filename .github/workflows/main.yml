@@ -1,30 +1,32 @@
-name: Complete Infrastructure Deployment
+name: Terraform Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [main]        # Workflow startet bei Push auf main
   pull_request:
-    branches: [main]
+    branches: [main]        # Workflow startet bei PR auf main
 
 jobs:
   terraform:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout
-      - name: Checkout repository
+      # 1️⃣ Repository auschecken
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Terraform
+      # 2️⃣ Terraform installieren
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v2
         with:
-          terraform_version: 1.6.0 
+          terraform_version: 1.6.0  
 
-      # 3️⃣ Debug: Verzeichnis prüfen
-      - name: List directory
+      # 3️⃣ Debug: Prüfen, ob der Ordner existiert
+      - name: List repository files
         run: |
+          echo "Current working directory:"
           pwd
+          echo "All files in repo:"
           ls -R
 
       # 4️⃣ Terraform Init
